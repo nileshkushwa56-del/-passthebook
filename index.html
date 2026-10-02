@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PassTheBook – sell or give away books you don't use</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f3f7f4;--card:#fff;--ink:#12302b;--mute:#587069;--line:#d3e0da;--brand:#0f5c52;--on:#fff;--gold:#f2b632;--free:#c2410c;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1b18;--card:#162824;--ink:#e6f1ed;--mute:#93aaa2;--line:#27403a;--brand:#3fb7a4;--on:#06201b;--gold:#f2b632;--free:#fb923c}}
+:root[data-theme="dark"]{--bg:#0e1b18;--card:#162824;--ink:#e6f1ed;--mute:#93aaa2;--line:#27403a;--brand:#3fb7a4;--on:#06201b;--gold:#f2b632;--free:#fb923c}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+h1,h2,h3{font-family:"Bricolage Grotesque",system-ui,sans-serif;margin:0;line-height:1.1}
+.wrap{max-width:1040px;margin:0 auto;padding:0 18px}
+header{padding:28px 0 8px}
+.logo{font:800 22px "Bricolage Grotesque",sans-serif;color:var(--brand)}
+.hero{padding:22px 0 18px}
+.hero h1{font-size:clamp(34px,7vw,60px);font-weight:800;max-width:14ch}
+.hero p{color:var(--mute);max-width:46ch;margin:12px 0 18px}
+button,input,select,textarea{font:inherit;color:inherit}
+.btn{background:var(--brand);color:var(--on);border:0;border-radius:10px;padding:11px 18px;font-weight:700;cursor:pointer}
+.btn.alt{background:transparent;color:var(--brand);border:2px solid var(--brand)}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.bar{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 18px}
+.bar input{flex:1 1 220px}
+input,select,textarea{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+.chips{display:flex;gap:8px}
+.chip{border:1px solid var(--line);background:var(--card);border-radius:99px;padding:8px 14px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--brand);color:var(--on);border-color:var(--brand)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:18px;padding-bottom:40px}
+.book{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+.cover{aspect-ratio:3/2;padding:16px;display:flex;flex-direction:column;justify-content:flex-end;color:#fff;border-left:10px solid rgba(0,0,0,.22)}
+.cover b{font:800 20px/1.1 "Bricolage Grotesque",sans-serif}
+.cover span{opacity:.85;font-size:13px;margin-top:4px}
+.info{padding:14px;display:flex;flex-direction:column;gap:6px;flex:1}
+.meta{color:var(--mute);font-size:14px}
+.price{font:800 20px "Bricolage Grotesque",sans-serif}
+.price.free{color:var(--free)}
+.info .btn{margin-top:auto}
+.empty{grid-column:1/-1;text-align:center;color:var(--mute);padding:40px 0}
+[hidden]{display:none!important}
+dialog{border:0;border-radius:14px;background:var(--card);color:var(--ink);width:min(480px,92vw);padding:22px}
+dialog::backdrop{background:rgba(0,0,0,.5)}
+label{display:block;font-weight:600;font-size:14px;margin:12px 0 4px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+.note{color:var(--mute);font-size:13px;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap" id="home">
+<header><div class="logo">PassTheBook</div></header>
+<section class="hero">
+<h1>Got books you don't read anymore?</h1>
+<p>Post them to sell or give away free. Someone who needs that book will find it and message you directly.</p>
+<button class="btn" id="postBtn">Post a book</button>
+</section>
+<div class="bar">
+<input id="q" type="search" placeholder="Search by title, author or city" aria-label="Search books">
+<div class="chips" role="group" aria-label="Filter">
+<button class="chip" data-f="all" aria-pressed="true">All</button>
+<button class="chip" data-f="free" aria-pressed="false">Free</button>
+<button class="chip" data-f="sale" aria-pressed="false">For sale</button>
+</div>
+</div>
+<div class="grid" id="grid"></div>
+</div>
+
+<section class="wrap" id="postPage" hidden>
+<header><div class="logo">PassTheBook</div></header>
+<h2 style="font-size:32px;margin:14px 0">Post your book</h2>
+<div style="max-width:560px">
+<label for="t">Book title</label><input id="t">
+<label for="a">Author</label><input id="a">
+<div class="row">
+<div><label for="c">Condition</label><select id="c"><option>Like new</option><option>Good</option><option>Used</option></select></div>
+<div><label for="mode">I want to</label><select id="mode"><option value="sale">Sell it</option><option value="free">Give it free</option></select></div>
+</div>
+<div id="priceBox"><label for="p">Price (₹)</label><input id="p" type="number" min="0" value="100"></div>
+<h3 style="margin-top:24px">Your details</h3>
+<label for="name">Your name</label><input id="name" autocomplete="name">
+<label for="phone">Phone number (10 digits)</label><input id="phone" inputmode="numeric" maxlength="10" placeholder="9876543210" autocomplete="tel-national">
+<label for="address">Full address</label><textarea id="address" rows="3" placeholder="House no., street, area, landmark" autocomplete="street-address"></textarea>
+<div class="row">
+<div><label for="city">City</label><input id="city" value="Nagpur" autocomplete="address-level2"></div>
+<div><label for="pin">PIN code</label><input id="pin" inputmode="numeric" maxlength="6" placeholder="440001" autocomplete="postal-code"></div>
+</div>
+<p class="note">Buyers will see your city, PIN code and can contact you on WhatsApp at this number. Your name and full address stay private. Share the address only when you agree on a pickup.</p>
+<div class="actions"><button class="btn" id="save">Publish listing</button><button class="btn alt" id="cancel1">Back to books</button></div>
+<p class="note" id="err" style="color:var(--free)" role="alert"></p>
+</div>
+</section>
+
+<dialog id="askDlg">
+<h2 id="askTitle"></h2>
+<p class="meta" id="askMeta"></p>
+<label for="who">Your name</label><input id="who">
+<label for="msg">Message</label><textarea id="msg" rows="3"></textarea>
+<div class="actions"><button class="btn" id="wa">Message on WhatsApp</button><button class="btn alt" id="cancel2">Close</button></div>
+</dialog>
+
+<script>
+let books=[],filter="all",current=null;
+async function load(){try{const r=await fetch("/api/books");books=await r.json()}catch(e){books=[]}render()}
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+function hue(s){let h=0;for(const ch of s)h=(h*31+ch.charCodeAt(0))%360;return h}
+function render(){
+ const q=$("q").value.toLowerCase().trim();
+ const list=books.filter(b=>(filter==="all"||b.mode===filter)&&(!q||(b.t+b.a+b.city).toLowerCase().includes(q)));
+ $("grid").innerHTML=list.length?list.map(b=>`<article class="book">
+ <div class="cover" style="background:hsl(${hue(b.t)} 45% 32%)"><b>${esc(b.t)}</b><span>${esc(b.a||"Unknown author")}</span></div>
+ <div class="info"><div class="price ${b.mode==="free"?"free":""}">${b.mode==="free"?"Free":"₹"+esc(b.p)}</div>
+ <div class="meta">${esc(b.c)} · ${esc(b.city)} ${esc(b.pin||"")}</div>
+ <button class="btn" data-id="${b.id}">I need this book</button></div></article>`).join(""):
+ `<div class="empty">No books here yet. Be the first to post one.</div>`;
+}
+document.querySelectorAll(".chip").forEach(c=>c.onclick=()=>{filter=c.dataset.f;
+ document.querySelectorAll(".chip").forEach(x=>x.setAttribute("aria-pressed",x===c));render()});
+$("q").oninput=render;
+$("grid").onclick=e=>{const id=e.target.dataset.id;if(!id)return;
+ current=books.find(b=>b.id==id);
+ $("askTitle").textContent=current.t;
+ $("askMeta").textContent=(current.mode==="free"?"Free":"₹"+current.p)+" · "+current.city;
+ $("msg").value=`Hi, I saw "${current.t}" on PassTheBook. Is it still available?`;
+ $("askDlg").showModal()};
+$("wa").onclick=()=>{const n=$("who").value.trim();
+ const text=(n?`I'm ${n}. `:"")+$("msg").value;
+ window.open(`https://wa.me/${current.w}?text=${encodeURIComponent(text)}`,"_blank","noopener")};
+const show=p=>{$("home").hidden=p;$("postPage").hidden=!p;window.scrollTo(0,0)};
+$("postBtn").onclick=()=>show(true);
+$("cancel1").onclick=()=>show(false);
+$("cancel2").onclick=()=>$("askDlg").close();
+$("mode").onchange=()=>$("priceBox").style.display=$("mode").value==="free"?"none":"block";
+$("save").onclick=()=>{
+ const v=i=>$(i).value.trim(),t=v("t"),phone=v("phone").replace(/\D/g,""),pin=v("pin"),mode=$("mode").value;
+ const bad=!t?"Enter the book title.":!v("name")?"Enter your name.":!/^[6-9]\d{9}$/.test(phone)?"Enter a valid 10-digit phone number.":v("address").length<10?"Enter your full address.":!/^\d{6}$/.test(pin)?"Enter a valid 6-digit PIN code.":"";
+ if(bad){$("err").textContent=bad;return}
+ $("save").disabled=true;
+ fetch("/api/books",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({t,a:v("a"),c:$("c").value,city:v("city"),pin,mode,p:$("p").value,name:v("name"),phone,address:v("address")})})
+ .then(r=>r.ok?r.json():r.json().then(j=>Promise.reject(j.error)))
+ .then(()=>{["t","a","address"].forEach(i=>$(i).value="");$("err").textContent="";show(false);load()})
+ .catch(m=>{$("err").textContent=m||"Could not publish. Try again."})
+ .finally(()=>{$("save").disabled=false})};
+load();
+</script>
+</body>
+</html>
