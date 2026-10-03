@@ -47,11 +47,21 @@ label{display:block;font-weight:600;font-size:14px;margin:12px 0 4px}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
 .note{color:var(--mute);font-size:13px;margin-top:10px}
+.top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:22px 0 8px}
+.nav{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.sm{padding:7px 12px;font-size:14px}
+.who{color:var(--mute);font-size:13px}
+.photo{aspect-ratio:3/2;width:100%;object-fit:cover;display:block}
+.two{display:flex;gap:8px}.two .btn{flex:1}
+.prev{max-width:220px;border-radius:10px;margin-top:8px;display:block}
+.msg{color:var(--free);font-size:13px;margin-top:10px}
 </style>
 </head>
 <body>
-<div class="wrap" id="home">
-<header><div class="logo">PassTheBook</div></header>
+<div class="wrap">
+<div class="top"><div class="logo" id="logo" style="cursor:pointer">PassTheBook</div><div class="nav" id="nav"></div></div>
+
+<div id="home">
 <section class="hero">
 <h1>Got books you don't read anymore?</h1>
 <p>Post them to sell or give away free. Someone who needs that book will find it and message you directly.</p>
@@ -63,17 +73,17 @@ label{display:block;font-weight:600;font-size:14px;margin:12px 0 4px}
 <button class="chip" data-f="all" aria-pressed="true">All</button>
 <button class="chip" data-f="free" aria-pressed="false">Free</button>
 <button class="chip" data-f="sale" aria-pressed="false">For sale</button>
-</div>
-</div>
+</div></div>
 <div class="grid" id="grid"></div>
 </div>
 
-<section class="wrap" id="postPage" hidden>
-<header><div class="logo">PassTheBook</div></header>
-<h2 style="font-size:32px;margin:14px 0">Post your book</h2>
+<div id="postPage" hidden>
+<h2 id="formTitle" style="font-size:32px;margin:14px 0">Post your book</h2>
 <div style="max-width:560px">
 <label for="t">Book title</label><input id="t">
 <label for="a">Author</label><input id="a">
+<label for="img">Book photo (optional)</label><input id="img" type="file" accept="image/*">
+<img id="prev" class="prev" alt="" hidden><button class="btn alt sm" id="rmImg" hidden style="margin-top:8px">Remove photo</button>
 <div class="row">
 <div><label for="c">Condition</label><select id="c"><option>Like new</option><option>Good</option><option>Used</option></select></div>
 <div><label for="mode">I want to</label><select id="mode"><option value="sale">Sell it</option><option value="free">Give it free</option></select></div>
@@ -81,17 +91,31 @@ label{display:block;font-weight:600;font-size:14px;margin:12px 0 4px}
 <div id="priceBox"><label for="p">Price (₹)</label><input id="p" type="number" min="0" value="100"></div>
 <h3 style="margin-top:24px">Your details</h3>
 <label for="name">Your name</label><input id="name" autocomplete="name">
-<label for="phone">Phone number (10 digits)</label><input id="phone" inputmode="numeric" maxlength="10" placeholder="9876543210" autocomplete="tel-national">
-<label for="address">Full address</label><textarea id="address" rows="3" placeholder="House no., street, area, landmark" autocomplete="street-address"></textarea>
+<label for="phone">Phone number (10 digits)</label><input id="phone" inputmode="numeric" maxlength="10" placeholder="9876543210">
+<label for="address">Full address</label><textarea id="address" rows="3" placeholder="House no., street, area, landmark"></textarea>
 <div class="row">
-<div><label for="city">City</label><input id="city" value="Nagpur" autocomplete="address-level2"></div>
-<div><label for="pin">PIN code</label><input id="pin" inputmode="numeric" maxlength="6" placeholder="440001" autocomplete="postal-code"></div>
+<div><label for="city">City</label><input id="city" value="Nagpur"></div>
+<div><label for="pin">PIN code</label><input id="pin" inputmode="numeric" maxlength="6" placeholder="440001"></div>
 </div>
-<p class="note">Buyers will see your city, PIN code and can contact you on WhatsApp at this number. Your name and full address stay private. Share the address only when you agree on a pickup.</p>
-<div class="actions"><button class="btn" id="save">Publish listing</button><button class="btn alt" id="cancel1">Back to books</button></div>
-<p class="note" id="err" style="color:var(--free)" role="alert"></p>
+<p class="note">Buyers see your city, PIN code, photo and can WhatsApp this number. Your name and full address stay private.</p>
+<div class="actions"><button class="btn" id="save">Publish</button><button class="btn alt" id="cancel1">Cancel</button></div>
+<p class="msg" id="err" role="alert"></p>
+</div></div>
+
+<div id="minePage" hidden>
+<h2 id="mineTitle" style="font-size:32px;margin:14px 0 6px"></h2>
+<p class="note" id="mineNote" style="margin:0 0 16px"></p>
+<div class="grid" id="mine"></div>
 </div>
-</section>
+</div>
+
+<dialog id="authDlg">
+<h2>Sign in</h2>
+<p class="meta">Use your Google (Gmail) account to post and manage books.</p>
+<div id="gbtn" style="margin:16px 0;min-height:44px"></div>
+<p class="msg" id="authErr" role="alert"></p>
+<div class="actions"><button class="btn alt" id="authX">Close</button></div>
+</dialog>
 
 <dialog id="askDlg">
 <h2 id="askTitle"></h2>
@@ -102,49 +126,103 @@ label{display:block;font-weight:600;font-size:14px;margin:12px 0 4px}
 </dialog>
 
 <script>
-let books=[],filter="all",current=null;
-async function load(){try{const r=await fetch("/api/books");books=await r.json()}catch(e){books=[]}render()}
 const $=id=>document.getElementById(id);
-const esc=s=>String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
-function hue(s){let h=0;for(const ch of s)h=(h*31+ch.charCodeAt(0))%360;return h}
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+let books=[],mine=[],filter="all",current=null,editId=null,imgData="",rmImg=false,wantPost=false,tok="",me=null;
+try{const x=JSON.parse(localStorage.getItem("ptb:me")||"null");if(x){tok=x.token;me={email:x.email,admin:x.admin}}}catch(e){}
+function saveMe(x){try{x?localStorage.setItem("ptb:me",JSON.stringify(x)):localStorage.removeItem("ptb:me")}catch(e){}}
+async function api(url,method,body){
+ const r=await fetch(url,{method:method||"GET",headers:{"Content-Type":"application/json",...(tok?{Authorization:"Bearer "+tok}:{})},body:body?JSON.stringify(body):undefined});
+ const j=await r.json().catch(()=>({}));
+ if(!r.ok){if(r.status===401&&tok)logout(true);throw j.error||"Something went wrong."}
+ return j}
+function view(v){["home","postPage","minePage"].forEach(x=>$(x).hidden=x!==v);window.scrollTo(0,0)}
+function nav(){
+ $("nav").innerHTML=me?`<span class="who">${esc(me.email)}${me.admin?" (admin)":""}</span>
+ <button class="btn alt sm" data-a="mine">${me.admin?"All posts":"My posts"}</button>
+ <button class="btn sm" data-a="post">Post a book</button>
+ <button class="btn alt sm" data-a="out">Log out</button>`:
+ `<button class="btn alt sm" data-a="login">Sign in with Google</button><button class="btn sm" data-a="post">Post a book</button>`}
+$("nav").onclick=e=>{const a=e.target.dataset.a;if(a==="login")openAuth();if(a==="post")goPost();if(a==="mine")goMine();if(a==="out")logout()};
+$("logo").onclick=()=>view("home");$("postBtn").onclick=goPost;
+function logout(quiet){tok="";me=null;saveMe(null);nav();view("home")}
+let gReady=false;
+function openAuth(){$("authErr").textContent="";$("authDlg").showModal();initGoogle()}
+$("authX").onclick=()=>$("authDlg").close();
+async function gDone(r){
+ try{const j=await api("/api/google","POST",{credential:r.credential});
+ tok=j.token;me={email:j.email,admin:j.admin};saveMe({token:tok,...me});nav();$("authDlg").close();
+ if(wantPost){wantPost=false;goPost()}}catch(m){$("authErr").textContent=m}}
+async function initGoogle(){
+ if(gReady)return;
+ try{const c=await api("/api/config");
+ if(!c.clientId){$("authErr").textContent="Google sign-in is not set up yet.";return}
+ await new Promise((ok,no)=>{const x=document.createElement("script");x.src="https://accounts.google.com/gsi/client";x.onload=ok;x.onerror=no;document.head.appendChild(x)});
+ google.accounts.id.initialize({client_id:c.clientId,callback:gDone});
+ google.accounts.id.renderButton($("gbtn"),{theme:"outline",size:"large",text:"continue_with",width:260});
+ gReady=true}catch(e){$("authErr").textContent="Could not load Google sign-in. Check your internet."}}
+
+async function load(){try{books=await api("/api/books")}catch(e){books=[]}render()}
 function render(){
  const q=$("q").value.toLowerCase().trim();
  const list=books.filter(b=>(filter==="all"||b.mode===filter)&&(!q||(b.t+b.a+b.city).toLowerCase().includes(q)));
- $("grid").innerHTML=list.length?list.map(b=>`<article class="book">
- <div class="cover" style="background:hsl(${hue(b.t)} 45% 32%)"><b>${esc(b.t)}</b><span>${esc(b.a||"Unknown author")}</span></div>
- <div class="info"><div class="price ${b.mode==="free"?"free":""}">${b.mode==="free"?"Free":"₹"+esc(b.p)}</div>
- <div class="meta">${esc(b.c)} · ${esc(b.city)} ${esc(b.pin||"")}</div>
- <button class="btn" data-id="${b.id}">I need this book</button></div></article>`).join(""):
- `<div class="empty">No books here yet. Be the first to post one.</div>`;
-}
+ $("grid").innerHTML=list.length?list.map(b=>card(b,`<button class="btn" data-id="${b.id}">I need this book</button>`)).join(""):
+ `<div class="empty">No books here yet. Be the first to post one.</div>`}
+function hue(s){let h=0;for(const ch of s)h=(h*31+ch.charCodeAt(0))%360;return h}
+function card(b,btns,extra){
+ return `<article class="book">${b.img?`<img class="photo" src="${esc(b.img)}" alt="${esc(b.t)}">`:`<div class="cover" style="background:hsl(${hue(b.t)} 45% 32%)"><b>${esc(b.t)}</b><span>${esc(b.a||"")}</span></div>`}
+ <div class="info">${b.img?`<b>${esc(b.t)}</b>`:""}<div class="price ${b.mode==="free"?"free":""}">${b.mode==="free"?"Free":"₹"+esc(b.p)}</div>
+ <div class="meta">${esc(b.c)} · ${esc(b.city)} ${esc(b.pin)}</div>${extra||""}${btns}</div></article>`}
 document.querySelectorAll(".chip").forEach(c=>c.onclick=()=>{filter=c.dataset.f;
  document.querySelectorAll(".chip").forEach(x=>x.setAttribute("aria-pressed",x===c));render()});
 $("q").oninput=render;
 $("grid").onclick=e=>{const id=e.target.dataset.id;if(!id)return;
- current=books.find(b=>b.id==id);
+ current=books.find(b=>b.id===id);
  $("askTitle").textContent=current.t;
  $("askMeta").textContent=(current.mode==="free"?"Free":"₹"+current.p)+" · "+current.city;
  $("msg").value=`Hi, I saw "${current.t}" on PassTheBook. Is it still available?`;
  $("askDlg").showModal()};
 $("wa").onclick=()=>{const n=$("who").value.trim();
- const text=(n?`I'm ${n}. `:"")+$("msg").value;
- window.open(`https://wa.me/${current.w}?text=${encodeURIComponent(text)}`,"_blank","noopener")};
-const show=p=>{$("home").hidden=p;$("postPage").hidden=!p;window.scrollTo(0,0)};
-$("postBtn").onclick=()=>show(true);
-$("cancel1").onclick=()=>show(false);
+ window.open(`https://wa.me/${current.w}?text=${encodeURIComponent((n?`I'm ${n}. `:"")+$("msg").value)}`,"_blank","noopener")};
 $("cancel2").onclick=()=>$("askDlg").close();
+
+function goPost(b){
+ if(!me){wantPost=true;openAuth();return}
+ editId=b?b.id:null;imgData="";rmImg=false;$("err").textContent="";
+ $("formTitle").textContent=b?"Edit your post":"Post your book";
+ $("save").textContent=b?"Save changes":"Publish";
+ const set=(i,v)=>$(i).value=v;
+ set("t",b?b.t:"");set("a",b?b.a:"");set("c",b?b.c:"Like new");set("mode",b?b.mode:"sale");set("p",b?b.p:100);
+ set("name",b?b.name:"");set("phone",b?b.w.slice(-10):"");set("address",b?b.address:"");set("city",b?b.city:"Nagpur");set("pin",b?b.pin:"");
+ $("img").value="";$("priceBox").style.display=$("mode").value==="free"?"none":"block";showPrev(b&&b.img?b.img:"");view("postPage")}
+function showPrev(src){$("prev").hidden=!src;$("rmImg").hidden=!src;if(src)$("prev").src=src}
 $("mode").onchange=()=>$("priceBox").style.display=$("mode").value==="free"?"none":"block";
-$("save").onclick=()=>{
- const v=i=>$(i).value.trim(),t=v("t"),phone=v("phone").replace(/\D/g,""),pin=v("pin"),mode=$("mode").value;
- const bad=!t?"Enter the book title.":!v("name")?"Enter your name.":!/^[6-9]\d{9}$/.test(phone)?"Enter a valid 10-digit phone number.":v("address").length<10?"Enter your full address.":!/^\d{6}$/.test(pin)?"Enter a valid 6-digit PIN code.":"";
- if(bad){$("err").textContent=bad;return}
+$("cancel1").onclick=()=>view(editId?"minePage":"home");
+function shrink(f){return new Promise((ok,no)=>{const im=new Image();im.onload=()=>{const k=Math.min(1,700/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);ok(c.toDataURL("image/jpeg",.7))};im.onerror=no;im.src=URL.createObjectURL(f)})}
+$("img").onchange=async e=>{const f=e.target.files[0];if(!f)return;
+ try{imgData=await shrink(f);rmImg=false;showPrev(imgData)}catch(x){$("err").textContent="Could not read that image."}};
+$("rmImg").onclick=e=>{e.preventDefault();imgData="";rmImg=true;$("img").value="";showPrev("")};
+$("save").onclick=async()=>{
+ const v=i=>$(i).value.trim();
+ const body={t:v("t"),a:v("a"),c:$("c").value,city:v("city"),pin:v("pin"),mode:$("mode").value,p:$("p").value,name:v("name"),phone:v("phone"),address:v("address"),img:imgData,removeImg:rmImg};
  $("save").disabled=true;
- fetch("/api/books",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({t,a:v("a"),c:$("c").value,city:v("city"),pin,mode,p:$("p").value,name:v("name"),phone,address:v("address")})})
- .then(r=>r.ok?r.json():r.json().then(j=>Promise.reject(j.error)))
- .then(()=>{["t","a","address"].forEach(i=>$(i).value="");$("err").textContent="";show(false);load()})
- .catch(m=>{$("err").textContent=m||"Could not publish. Try again."})
- .finally(()=>{$("save").disabled=false})};
-load();
+ try{await api(editId?"/api/books/"+editId:"/api/books",editId?"PUT":"POST",body);
+  const was=editId;await load();was?goMine():view("home")}
+ catch(m){$("err").textContent=m}finally{$("save").disabled=false}};
+
+async function goMine(){
+ try{mine=await api("/api/mine")}catch(e){return}
+ $("mineTitle").textContent=me.admin?"All posts (admin)":"My posts";
+ $("mineNote").textContent=me.admin?"You can edit or delete any post.":"Only you can edit or delete these.";
+ $("mine").innerHTML=mine.length?mine.map(b=>card(b,`<div class="two"><button class="btn" data-e="${b.id}">Edit</button><button class="btn alt" data-d="${b.id}">Delete</button></div>`,
+  `<div class="meta">${me.admin?esc(b.owner)+" · ":""}${esc(b.name)} · ${esc(b.w.slice(-10))}</div><div class="meta">${esc(b.address)}</div>`)).join(""):
+ `<div class="empty">You haven't posted any books yet.</div>`;
+ view("minePage")}
+$("mine").onclick=async e=>{
+ const ed=e.target.dataset.e,de=e.target.dataset.d;
+ if(ed)goPost(mine.find(b=>b.id===ed));
+ if(de&&confirm("Delete this post?")){try{await api("/api/books/"+de,"DELETE");await load();goMine()}catch(m){alert(m)}}};
+nav();load();
 </script>
 </body>
 </html>
